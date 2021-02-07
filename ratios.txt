@@ -1,0 +1,15 @@
+resolution: 1600 x 900px
+height of toolbar: 28px
+
+width of start button: 51px
+height of start button: 22px
+distance from left to start button: 3px
+start button padding top: 4px
+start button padding bottom: 2px
+
+height of background: 872px
+
+width of toolbar active window button: 160px
+distance between toolbar items: 9px
+width of program icon: 18px
+active toolbar icon distance from left: ~4px
