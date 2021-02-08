@@ -23,7 +23,9 @@ const colors = {
     taskbar_dark_grey: '#7f7f7f',
     taskbar_grey: '#c0c0c0',
     taskbar_white: '#e0e0e0',
-    background_turquoise: '#008081'
+    background_turquoise: '#008081',
+    window_namebar_grey: '#808080',
+    window_grey: '#C0C0C0'
 }
 
 class Entity {
@@ -65,7 +67,7 @@ class Taskbar extends Entity {
 
         // Draw items
         for (let i = 0; i < this.items.length; i++) {
-            items[i].draw(i);
+            items[i].draw(ctx);
         }
     }
 }
@@ -91,17 +93,23 @@ class Background extends Entity {
 
 class Button extends Entity {
     hovered = false;
+    pressed = false;
     constructor(x, y, w, h) {
         super(x, y, w, h);
     }
-    drawButtonOutline(ctx, pressed = false) {
-        const darker = colors.taskbar_darker_grey;
+    color() {
+        if (this.hovered) return colors.taskbar_dark_grey;
+        if (this.pressed) return colors.taskbar_white;
+        return colors.taskbar_grey
+    }
+    drawButtonOutline(ctx) {
+        const darker = 'black';//colors.taskbar_darker_grey;
         const dark = colors.taskbar_dark_grey
         const light = colors.taskbar_white;
         
         // left and top
         ctx.beginPath();
-        ctx.strokeStyle = pressed ? darker : light;
+        ctx.strokeStyle = this.pressed ? darker : light;
         ctx.moveTo(this.x, this.y);
         ctx.lineTo(this.x, this.y + this.h);
         ctx.stroke();
@@ -112,7 +120,7 @@ class Button extends Entity {
     
         // right and bottom
         ctx.beginPath();
-        ctx.strokeStyle = pressed ? light : darker;
+        ctx.strokeStyle = this.pressed ? light : darker;
         ctx.moveTo(this.x, this.y + this.h);
         ctx.lineTo(this.x + this.w, this.y + this.h);
         ctx.stroke();
@@ -122,7 +130,7 @@ class Button extends Entity {
         ctx.stroke();
         
         // inner dark grey out line right and bottom or top and left
-        if (pressed) {
+        if (this.pressed) {
             ctx.beginPath();
             ctx.strokeStyle = dark;
             ctx.moveTo(this.x + 1, this.y + 1);
@@ -163,9 +171,7 @@ class StartButton extends Button {
         );
     }
     draw(ctx) {
-        const taskbar = colors.taskbar_grey;
-
-        ctx.fillStyle = taskbar;
+        ctx.fillStyle = super.color();
         ctx.fillRect(this.x, this.y, this.w, this.h);
         super.drawButtonOutline(ctx);
     }
@@ -178,9 +184,8 @@ class ActiveWindowButton extends Button {
         this.text = text;
     }
     draw(ctx, n = 0) {
-        const taskbar = colors.taskbar_grey;
-
         const offset = ((9/1600) + (160/1600)) * n;
+
         // padding from left of start + start button width + space between items
         let start = (3/1600) + (51/1600) + (9/1600) + offset;
 
@@ -190,7 +195,7 @@ class ActiveWindowButton extends Button {
         const h = (22/900) * ScreenHeight();
 
 
-        ctx.fillStyle = taskbar;
+        ctx.fillStyle = super.color();;
         ctx.fillRect(x, y, w, h);
         super.drawButtonOutline(ctx);
     }
@@ -203,8 +208,9 @@ class TimeDateBar extends Entity {
 class WindowEntity extends Entity {
     static lastActiveIndex = 0;
     isMostActive = false;
-    title;
+    title = "";
     id;
+    content = "";
     grabOffset = {x: 0, y: 0};
     constructor(x, y, w, h, title) {
         super(x, y, w, h);
@@ -212,15 +218,31 @@ class WindowEntity extends Entity {
     }
     // TODO: fix this
     draw(ctx) {
+        let titleFontHeight = "16";
+        let contentFontHeight = "14";
+
+        // Window
         ctx.fillStyle = colors.taskbar_grey;
         ctx.fillRect(this.x, this.y, this.w, this.h);
-        ctx.fillStyle = colors.taskbar_darker_grey;
+
+        // Namebar 
+        ctx.fillStyle = colors.window_namebar_grey;
         ctx.fillRect(this.x + 2, this.y + 2, this.w - 4, 20);
-        ctx.font = "16px WindowsXP";
-        ctx.fillStyle = 'white';
+
+        // Namebar title
+        ctx.font = titleFontHeight + "px WindowsXP";
+        ctx.fillStyle = colors.window_grey;
         ctx.fillText(this.title, this.x + 5, this.y + 17);
-        //border
+
+        // Border
         ctx.strokeRect(this.x, this.y, this.w, this.h);
+
+        // content text
+        ctx.font = contentFontHeight + "px WindowsXP";
+        ctx.fillStyle = 'black';
+        //let width = ctx.measureText(this.content).width;
+        //console.log("Text width: " + width + ", Window width: " + this.w);
+        ctx.fillText(this.content, this.x + 4, this.y + 36);
     }
     move(mouseX, mouseY) {
         let dx = mouseX - this.grabOffset.x;
@@ -299,6 +321,7 @@ class Session {
 
 let activeWindows = [];
 let activeIcons = [];
+let activeButtons = [];
 
 let img = new Image();
 img.src = 'icons/exefile.png';
@@ -308,7 +331,7 @@ function loadUIElements() {
     let items = [];
     items.push(new Background());
     items.push(new Taskbar());
-    items.push(new StartButton());
+    //items.push(new StartButton());
     //items.push(new DateTimeBar());
     return items;
 }
@@ -327,6 +350,11 @@ function main(canvas) {
     // Draw icons
     for (let i = 0; i < activeIcons.length; i++) {
         activeIcons[i].draw(ctx);
+    }
+
+    // Draw buttons
+    for (let i = 0; i < activeButtons.length; i++) {
+        activeButtons[i].draw(ctx);
     }
 
     // Draw open and active windows
@@ -348,13 +376,17 @@ let iconClickedIndex = 0;
 window.addEventListener('load', e => {
     const canvas = $('canvas');
 
+    activeButtons.push(new StartButton());
+
     let i = new Icon(20, 20, 100, 100, "Icon", null);
     activeIcons.push(i);
+
     main(canvas);
     
+    // Re-render on resize
     window.addEventListener('resize', e => {
         main(canvas);
-    })
+    });
 
     canvas.addEventListener('mousedown', e => {
         // Check if trying to move a window
@@ -369,6 +401,8 @@ window.addEventListener('load', e => {
             }
         }
 
+        // Check if just in window
+
         // Check if trying to click icon
         for (let i = 0; i < activeIcons.length; i++) {
             if (activeIcons[i].canClick(e.clientX, e.clientY)) {
@@ -378,10 +412,15 @@ window.addEventListener('load', e => {
             }
         }
 
-        // Check if over button
+        // Check if trying to click button
+        for (let i = 0; i < activeButtons.length; i++) {
+            if (activeButtons[i].isHovered(e.clientX, e.clientY)) {
+                activeButtons[i].pressed = true;
+            }
+        }
 
         main(canvas);
-    })
+    });
 
     canvas.addEventListener('mousemove', e => {
         
@@ -389,25 +428,55 @@ window.addEventListener('load', e => {
             activeWindows[WindowEntity.lastActiveIndex].move(e.clientX, e.clientY);
         }
 
+        for (let i = 0; i < activeButtons.length; i++) {
+            activeButtons[i].hovered = activeButtons[i].isHovered(e.clientX, e.clientY);
+        }
+
         main(canvas);
-    })
+    });
 
     canvas.addEventListener('mouseup', e => {
-        // Stopped moving a window
+        // Finished moving a window
         movingWindow = false;
 
-        // Clicking an icon
+        // Finished clicking an icon
         if (clickingIcon && activeIcons[iconClickedIndex].canClick(e.clientX, e.clientY)) {
             activeWindows.push(new WindowEntity(.5 * ScreenWidth(), .5 * ScreenHeight(), .3 * ScreenWidth(), .4 * ScreenHeight(), 'My Application' + activeWindows.length))
             clickingIcon = false;
             WindowEntity.lastActiveIndex = activeWindows.length - 1;
         }
 
+        // Finished clicking a button
+        for (let i = 0; i < activeButtons.length; i++) {
+            if (activeButtons[i].pressed) {
+                activeButtons[i].pressed = false;
+            }
+        }
+
         main(canvas);
-    })
+    });
 
     // Remove context menu
     canvas.addEventListener('contextmenu', e => {
         e.preventDefault();
+    });
+
+    // Handle key presses
+    document.addEventListener('keydown', e => {
+        if (activeWindows.length !== 0) {
+            let windowIndex = WindowEntity.lastActiveIndex;
+            let key = e.key;
+            if (key === "Backspace") {
+                if (activeWindows[windowIndex].content.length !== 0) {
+                    activeWindows[windowIndex].content = activeWindows[windowIndex].content.substring(0, activeWindows[windowIndex].content.length - 1);
+                }
+            } else if (key.length > 1) {
+                console.log(key + " too long");
+            } else {
+                activeWindows[windowIndex].content += e.key;
+            }
+        }
+
+        main(canvas);
     })
 });
