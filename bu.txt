@@ -1,0 +1,77 @@
+// Check if trying to move a window
+            if (activeWindows[lastActiveIndex].canMove(e.clientX, e.clientY)) {
+                // Active window first
+                movingWindow = true;
+                const offx = e.clientX - activeWindows[lastActiveIndex].x;
+                const offy = e.clientY - activeWindows[lastActiveIndex].y;
+                activeWindows[lastActiveIndex].setGrabOffset(offx, offy);
+            } else { // Rest of windows
+                for (let i = 0; i < activeWindows.length; i++) {
+                    if (i === lastActiveIndex) continue;
+                    if (activeWindows[i].canMove(e.clientX, e.clientY)) {
+                        WindowEntity.lastActiveIndex = i;
+                        movingWindow = true;
+                        let offx = e.clientX - activeWindows[i].x;
+                        let offy = e.clientY - activeWindows[i].y;
+                        activeWindows[i].setGrabOffset(offx, offy);
+                        break;
+                    }
+                }
+            }
+            /*
+            // Check if just in window
+            if (activeWindows[lastActiveIndex].isHovered(e.clientX, e.clientY)) {
+                // Active window first
+                console.log("In active window: " + lastActiveIndex);
+            } else { // Rest of windows
+                for (let i = 0; i < activeWindows.length; i++) {
+                    if (activeWindows[lastActiveIndex].isHovered(e.clientX, e.clientY)) {
+                        continue;
+                    }
+                    if (activeWindows[i].isHovered(e.clientX, e.clientY)) {
+                        WindowEntity.lastActiveIndex = i;
+                        console.log("In window: " + i);
+                        break;
+                    }
+                }
+            }*/
+
+
+EARLY RETURNS:
+
+// moving active -> in active -> moving other -> in other
+            // Check if trying to move a window
+            if (activeWindows[lastActiveIndex].canMove(e.clientX, e.clientY)) {
+                // Active window first
+                movingWindow = true;
+                const offx = e.clientX - activeWindows[lastActiveIndex].x;
+                const offy = e.clientY - activeWindows[lastActiveIndex].y;
+                activeWindows[lastActiveIndex].setGrabOffset(offx, offy);
+            } else if (activeWindows[lastActiveIndex].isHovered(e.clientX, e.clientY)) {
+                // Active window first
+                console.log("In active window: " + lastActiveIndex);
+            } else {
+                let noWindowFound = true;
+                for (let i = 0; i < activeWindows.length; i++) {
+                    if (i === lastActiveIndex) continue;
+                    if (activeWindows[i].canMove(e.clientX, e.clientY)) {
+                        WindowEntity.lastActiveIndex = i;
+                        movingWindow = true;
+                        let offx = e.clientX - activeWindows[i].x;
+                        let offy = e.clientY - activeWindows[i].y;
+                        activeWindows[i].setGrabOffset(offx, offy);
+                        noWindowFound = false;
+                        break;
+                    }
+                }
+                if (noWindowFound) {
+                    for (let i = 0; i < activeWindows.length; i++) {
+                        if (i === lastActiveIndex) continue;
+                        if (activeWindows[i].isHovered(e.clientX, e.clientY)) {
+                            WindowEntity.lastActiveIndex = i;
+                            console.log("In window: " + i);
+                            break;
+                        }
+                    }
+                }
+            }
