@@ -7,6 +7,9 @@ body, html { height:100%; }
 }
 
 @font-face {
-    font-family: WindowsXP;
-    src: url(w95fa.woff);
+    font-family: 'WindowsXP';
+    /* src: url(./fonts/ModernDOS9x14.ttf) */
+    /* src: url(./fonts/VT323-Regular.ttf); */
+    src: url(./fonts/w95fa.woff);
+    /* src: url(./fonts/FSEX302.ttf); */
 }

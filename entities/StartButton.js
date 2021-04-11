@@ -2,6 +2,7 @@ import Button from './Button.js';
 import { ScreenWidth, ScreenHeight, colors } from '../Utils.js';
 
 export default class StartButton extends Button {
+
     constructor() {
         super(
             (3/1600) * ScreenWidth(),
@@ -10,6 +11,7 @@ export default class StartButton extends Button {
             (22/900) * ScreenHeight()
         );
     }
+    
     draw(ctx) {
         ctx.fillStyle = super.color();
         ctx.fillRect(this.x, this.y, this.w, this.h);

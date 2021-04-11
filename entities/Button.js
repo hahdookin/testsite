@@ -9,7 +9,7 @@ export default class Button extends Entity {
     }
     color() {
         if (this.pressed) return colors.taskbar_white;
-        if (this.hovered) return colors.taskbar_dark_grey;
+        //if (this.hovered) return colors.taskbar_dark_grey;
         return colors.taskbar_grey
     }
     draw(ctx) {

@@ -9,8 +9,12 @@ export const colors = {
     taskbar_dark_grey: '#7f7f7f',
     taskbar_grey: '#c0c0c0',
     taskbar_white: '#e0e0e0',
+
     background_turquoise: '#008081',
+
     window_namebar_grey: '#808080',
+    window_namebar_blue: '#0000A8',
+    
     window_grey: '#C0C0C0'
 }
 

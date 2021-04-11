@@ -7,13 +7,15 @@ export default class WindowEntity extends Entity {
     isMostActive = false;
     title = "";
     id;
-    //content = "";
-    //contentArr = [];
     grabOffset = {x: 0, y: 0};
+
+    nameBarColor = colors.window_namebar_grey;
+
     constructor(x, y, w, h, title) {
         super(x, y, w, h);
         this.title = title;
     }
+
     // TODO: fix this
     draw(ctx) {
         let titleFontHeight = "16";
@@ -27,7 +29,7 @@ export default class WindowEntity extends Entity {
         this.drawWindowOutline(ctx);
     
         // Namebar 
-        ctx.fillStyle = colors.window_namebar_grey;
+        ctx.fillStyle = this.nameBarColor;
         ctx.fillRect(this.x + 4, this.y + 4, this.w - 8, 21);
 
         // Namebar title
@@ -35,18 +37,11 @@ export default class WindowEntity extends Entity {
         ctx.fillStyle = colors.window_grey;
         ctx.fillText(this.title, this.x + 5, this.y + 20);
 
-
-        // content text
-        /*ctx.font = contentFontHeight + "px WindowsXP";
-        ctx.fillStyle = 'black';
-        //let width = ctx.measureText(this.content).width;
-        //console.log("Text width: " + width + ", Window width: " + this.w);
-        ctx.fillText(this.content, this.x + 4, this.y + 36);*/
-
         // Draw close button
         const close_button = new Button(this.x + this.w - 22, this.y + 8, 16, 14);
         close_button.draw(ctx);
     }
+
     drawWindowOutline(ctx) {
         ctx.beginPath();
         ctx.strokeStyle = colors.taskbar_white;
@@ -81,17 +76,43 @@ export default class WindowEntity extends Entity {
         ctx.lineTo(this.x + this.w, this.y);
         ctx.stroke();
     }
+
     move(mouseX, mouseY) {
         let dx = mouseX - this.grabOffset.x;
         let dy = mouseY - this.grabOffset.y;
         this.x = dx;
         this.y = dy;
     }
+
+    // In namebar
     canMove(mouseX, mouseY) {
         let inX = mouseX <= this.x + this.w - 4 && mouseX >= this.x + 4;
         let inY = mouseY <= this.y + 4 + 21 && mouseY >= this.y + 4;
         return inX && inY;
     }
+
+    resize(mouseX, mouseY) {
+        const defaultW = 128;
+        const defaultH = 128;
+        this.w = mouseX - this.x + this.grabOffset.x;
+        this.h = mouseY - this.y + this.grabOffset.y;
+
+        // Don't let window be smaller than defaults
+        if (this.w < defaultW) {
+            this.w = defaultW;
+        }
+        if (this.h < defaultH) {
+            this.h = defaultH;
+        }
+    }
+
+    // In bottom right corner square
+    canResize(mouseX, mouseY) {
+        let inX = mouseX <= this.x + this.w && mouseX >= this.x + this.w - 7;
+        let inY = mouseY <= this.y + this.h && mouseY >= this.y + this.h - 7;
+        return inX && inY;
+    }
+
     setGrabOffset(x, y) {
         this.grabOffset.x = x;
         this.grabOffset.y = y;

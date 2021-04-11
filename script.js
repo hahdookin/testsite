@@ -1,13 +1,15 @@
 import Background from './entities/Background.js';
-import Taskbar from './entities/Taskbar.js';
-import StartButton from './entities/StartButton.js';
 import Icon from './entities/Icon.js';
-import WindowEntity from './entities/WindowEntity.js';
-import TextWindow from './entities/TextWindow.js';
 import Session from './entities/Session.js';
+import StartButton from './entities/StartButton.js';
+import Taskbar from './entities/Taskbar.js';
+import Terminal from './entities/Terminal.js';
+import TextWindow from './entities/TextWindow.js';
+import WindowEntity from './entities/WindowEntity.js';
+import FileSystem from './entities/FileSystem.js';
+import { Folder, File } from './entities/FileSystem.js';
 
 import { ScreenWidth, ScreenHeight, colors, $, getRandomColor } from './Utils.js';
-
 
 function drawActiveWindowButton(n=0) {
     const canvas = $('canvas');
@@ -35,7 +37,7 @@ let activeIcons = [];
 let activeButtons = [];
 
 let img = new Image();
-img.src = 'icons/exefile.png';
+img.src = 'icons/batchfile.png';
 
 
 function loadUIElements() {
@@ -46,6 +48,7 @@ function loadUIElements() {
     //items.push(new DateTimeBar());
     return items;
 }
+
 function main(canvas) {
     canvas.width = ScreenWidth();
     canvas.height = ScreenHeight();
@@ -81,17 +84,28 @@ function main(canvas) {
     }
 }
 
+function createFileSystem() {
+    const fs = new FileSystem('root');
+    fs.root.add(new Folder('user'));
+    fs.root.get('user').add(new Folder('documents'));
+    fs.root.add(new Folder('bin'));
+    fs.root.add(new Folder('cache'));
+    return fs;
+}
+
 let movingWindow = false;
+let resizingWindow = false;
 let clickingIcon = false;
 let iconClickedIndex = 0;
-let cursorVisible = false;
 
 window.addEventListener('load', e => {
     const canvas = $('canvas');
 
     activeButtons.push(new StartButton());
 
-    let i = new Icon(20, 20, 100, 100, "Icon", null);
+    const fileSystem = createFileSystem();
+
+    let i = new Icon(20, 20, 100, 100, "Icon", img);
     activeIcons.push(i);
     
     // Re-render on resize
@@ -100,7 +114,7 @@ window.addEventListener('load', e => {
     });
 
     canvas.addEventListener('mousedown', e => {
-        // Handle windows
+        // Handle windows (real messy)
         if (activeWindows.length !== 0) {
             const lastActiveIndex = WindowEntity.lastActiveIndex;
 
@@ -141,6 +155,13 @@ window.addEventListener('load', e => {
                     }
                 }
             }
+            // Handle active window resize
+            if (activeWindows[lastActiveIndex].canResize(e.clientX, e.clientY)) {
+                let offx = activeWindows[lastActiveIndex].x + activeWindows[lastActiveIndex].w - e.clientX;
+                let offy = activeWindows[lastActiveIndex].y + activeWindows[lastActiveIndex].h - e.clientY;
+                activeWindows[lastActiveIndex].setGrabOffset(offx, offy);
+                resizingWindow = true;
+            }
         }
         
         // Check if trying to click icon
@@ -168,6 +189,10 @@ window.addEventListener('load', e => {
             activeWindows[WindowEntity.lastActiveIndex].move(e.clientX, e.clientY);
         }
 
+        if (resizingWindow) {
+            activeWindows[WindowEntity.lastActiveIndex].resize(e.clientX, e.clientY);
+        }
+
         for (let i = 0; i < activeButtons.length; i++) {
             activeButtons[i].hovered = activeButtons[i].isHovered(e.clientX, e.clientY);
         }
@@ -176,18 +201,36 @@ window.addEventListener('load', e => {
     });
 
     canvas.addEventListener('mouseup', e => {
-        // Finished moving a window
+        // Finished moving or resizing a window
         movingWindow = false;
+        resizingWindow = false;
 
         // Finished clicking an icon
         if (clickingIcon && activeIcons[iconClickedIndex].canClick(e.clientX, e.clientY)) {
-            const win = new TextWindow(.5 * ScreenWidth(), .5 * ScreenHeight(), .3 * ScreenWidth(), .4 * ScreenHeight(), 'My Application' + activeWindows.length);
+            let win;
+            if (e.ctrlKey) 
+                win = new TextWindow(
+                    .5 * ScreenWidth(), 
+                    .5 * ScreenHeight(), 
+                    .3 * ScreenWidth(), 
+                    .4 * ScreenHeight(), 
+                    'TextWindow' + activeWindows.length
+                );
+            else 
+                win = new Terminal(
+                    .5 * ScreenWidth(), 
+                    .5 * ScreenHeight(), 
+                    .3 * ScreenWidth(), 
+                    .4 * ScreenHeight(), 
+                    'Terminal' + activeWindows.length,
+                    fileSystem
+                );
             activeWindows.push(win);
-            clickingIcon = false;
+
+            // Set newly opened window to be the last active window
             WindowEntity.lastActiveIndex = activeWindows.length - 1;
-        } else {
-            clickingIcon = false;
         }
+        clickingIcon = false;
 
         // Finished clicking a button
         for (let i = 0; i < activeButtons.length; i++) {
@@ -207,38 +250,21 @@ window.addEventListener('load', e => {
     // Handle key presses
     document.addEventListener('keydown', e => {
         if (activeWindows.length !== 0) {
-            const lastActiveIndex = WindowEntity.lastActiveIndex;
-            const key = e.key;
-            const contentArr = activeWindows[lastActiveIndex].contentArr;
-            const endIndex = contentArr.length - 1;
-
-            if (key.length !== 1) {
-                switch (e.key) {
-                    case "Backspace":
-                        const adjusted = contentArr[endIndex].substring(0, contentArr[endIndex].length - 1);
-                        activeWindows[lastActiveIndex].contentArr[endIndex] = adjusted;
-                        break;
-                    case "Enter":
-                        activeWindows[lastActiveIndex].contentArr.push("");
-                        break;
-                    default:
-                }
-            } else {
-                activeWindows[lastActiveIndex].contentArr[endIndex] += e.key;
-            }
-
+            activeWindows[WindowEntity.lastActiveIndex].handleKey(e);
         }
 
         main(canvas);
-    })
+    });
 
     
     window.setInterval(() => {
         if (activeWindows.length !== 0) {
-            cursorVisible = !cursorVisible;
-            main(canvas);
+            const lastActiveIndex = WindowEntity.lastActiveIndex;
+            const cursorVisible = activeWindows[lastActiveIndex].cursorVisible;
+            activeWindows[lastActiveIndex].cursorVisible = !cursorVisible;
         }
-    }, 500)
+        main(canvas);
+    }, 500);
 
     main(canvas);
 });
