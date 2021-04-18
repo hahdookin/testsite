@@ -57,8 +57,8 @@ export default class Terminal extends TextWindow {
 
                 case "Enter":
                     // Don't print return val if cmd returns undefined
-                    const returnVal = this.handleCmd(this.command);
                     this.content += '\n';
+                    const returnVal = this.handleCmd(this.command);
                     if (returnVal !== undefined) {
                         this.content += returnVal + '\n';
                     }
@@ -77,6 +77,7 @@ export default class Terminal extends TextWindow {
 
     handleCmd(cmd) {
         let returnVal = undefined;
+        cmd = cmd.trim();
         const tokens = cmd.split(" ");
         const program = tokens[0];
         console.log(tokens);
@@ -84,6 +85,10 @@ export default class Terminal extends TextWindow {
 
             case 'cd':
                 returnVal = this.#cd(tokens);
+                break;
+
+            case 'clear':
+                returnVal = this.#clear(cmd);
                 break;
 
             case 'dir':
@@ -144,6 +149,18 @@ export default class Terminal extends TextWindow {
         return returnVal; 
     }
 
+    #clear(args) {
+        this.content = "";
+    }
+
+    // def symbol = 
+    #def(cmd) {
+        console.log(cmd);
+        const space = cmd.indexOf(' ');
+        const input = cmd.substring(space + 1);
+        
+    }
+
     // prints to terminal items in current directory
     // returns: undefined if directory is empty, list of items if successful
     #dir(args) {
@@ -162,11 +179,6 @@ export default class Terminal extends TextWindow {
             }
         }
         return res;
-    }
-
-    // def symbol = 
-    #def(cmd) {
-        
     }
 
     #symbolLookUp(symbol) {

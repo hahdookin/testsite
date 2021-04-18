@@ -69,4 +69,8 @@ export default class Button extends Entity {
             ctx.stroke();
         }
     }
+    // Fires on mouse up over button
+    onClick() {
+        console.log("Button clicked");
+    }
 }

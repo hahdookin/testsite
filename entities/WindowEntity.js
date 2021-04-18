@@ -4,16 +4,26 @@ import { ScreenWidth, ScreenHeight, colors } from '../Utils.js';
 
 export default class WindowEntity extends Entity {
     static lastActiveIndex = 0;
-    isMostActive = false;
+    //isMostActive = false;
     title = "";
     id;
     grabOffset = {x: 0, y: 0};
+    minimized = false;
+
+    close_button;
 
     nameBarColor = colors.window_namebar_grey;
 
     constructor(x, y, w, h, title) {
         super(x, y, w, h);
         this.title = title;
+
+        this.close_button = new Button(
+            this.x + this.w - 22, 
+            this.y + 8, 
+            16, 
+            14
+        );
     }
 
     // TODO: fix this
@@ -38,8 +48,8 @@ export default class WindowEntity extends Entity {
         ctx.fillText(this.title, this.x + 5, this.y + 20);
 
         // Draw close button
-        const close_button = new Button(this.x + this.w - 22, this.y + 8, 16, 14);
-        close_button.draw(ctx);
+        //const close_button = new Button(this.x + this.w - 22, this.y + 8, 16, 14);
+        this.close_button.draw(ctx);
     }
 
     drawWindowOutline(ctx) {
@@ -82,13 +92,20 @@ export default class WindowEntity extends Entity {
         let dy = mouseY - this.grabOffset.y;
         this.x = dx;
         this.y = dy;
+
+        // Move buttons
+        this.close_button.x = this.x + this.w - 22;
+        this.close_button.y = this.y + 8;
     }
 
     // In namebar
     canMove(mouseX, mouseY) {
+        // Make sure not clicking button
+        let inButton = this.close_button.isHovered(mouseX, mouseY);
+
         let inX = mouseX <= this.x + this.w - 4 && mouseX >= this.x + 4;
         let inY = mouseY <= this.y + 4 + 21 && mouseY >= this.y + 4;
-        return inX && inY;
+        return (inX && inY) && !inButton;
     }
 
     resize(mouseX, mouseY) {
@@ -104,6 +121,10 @@ export default class WindowEntity extends Entity {
         if (this.h < defaultH) {
             this.h = defaultH;
         }
+
+        // Move buttons
+        this.close_button.x = this.x + this.w - 22;
+        this.close_button.y = this.y + 8;
     }
 
     // In bottom right corner square
@@ -117,4 +138,11 @@ export default class WindowEntity extends Entity {
         this.grabOffset.x = x;
         this.grabOffset.y = y;
     }
+
+    /* buttonHovered(mouseX, mouseY) {
+        // this.x + this.w - 22, this.y + 8, 16, 14
+        let inX = mouseX <= this.x + this.w - 22 + 16 && mouseX >= this.x + this.w - 22;
+        let inY = mouseY <= this.y + 8 + 14 && mouseY >= this.y + 8;
+        return inX && inY;
+    } */
 }

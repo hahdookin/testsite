@@ -1,0 +1,8 @@
+Hi there!
+
+Welcome to my site, its like a computer if u kinda think about it.
+
+Have a look around, and feel free to mess around with the terminal.
+(Use the help command to get started)
+
+Thanks!

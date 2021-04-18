@@ -1,4 +1,5 @@
 import Background from './entities/Background.js';
+import FileSystem from './entities/FileSystem.js';
 import Icon from './entities/Icon.js';
 import Session from './entities/Session.js';
 import StartButton from './entities/StartButton.js';
@@ -6,39 +7,14 @@ import Taskbar from './entities/Taskbar.js';
 import Terminal from './entities/Terminal.js';
 import TextWindow from './entities/TextWindow.js';
 import WindowEntity from './entities/WindowEntity.js';
-import FileSystem from './entities/FileSystem.js';
 import { Folder, File } from './entities/FileSystem.js';
 
 import { ScreenWidth, ScreenHeight, colors, $, getRandomColor } from './Utils.js';
-
-function drawActiveWindowButton(n=0) {
-    const canvas = $('canvas');
-    const ctx = canvas.getContext('2d');
-
-    const taskbar = colors.taskbar_grey;
-
-    const offset = ((9/1600) + (160/1600)) * n;
-    // padding from left of start + start button width + space between items
-    let start = (3/1600) + (51/1600) + (9/1600) + offset;
-
-    const x = (9/1600) + start * ScreenWidth();
-    const y = ((872 + 4)/900) * ScreenHeight();
-    const w = (160/1600) * ScreenWidth();
-    const h = (22/900) * ScreenHeight();
-
-
-    ctx.fillStyle = taskbar;
-    ctx.fillRect(x, y, w, h);
-}
-
+import ActiveWindowButton from './entities/ActiveWindowButton.js';
 
 let activeWindows = [];
 let activeIcons = [];
 let activeButtons = [];
-
-let img = new Image();
-img.src = 'icons/batchfile.png';
-
 
 function loadUIElements() {
     let items = [];
@@ -48,6 +24,12 @@ function loadUIElements() {
     //items.push(new DateTimeBar());
     return items;
 }
+
+let showFPS = true;
+let frames = 0;
+let ms = 0;
+let last;
+let fps = 0;
 
 function main(canvas) {
     canvas.width = ScreenWidth();
@@ -74,13 +56,31 @@ function main(canvas) {
     // Draw open and active windows
     if (activeWindows.length !== 0) {
         for (let i = 0; i < activeWindows.length; i++) {
-            if (WindowEntity.lastActiveIndex === i) {
+            if (i === WindowEntity.lastActiveIndex) {
                 continue;
             } 
             activeWindows[i].draw(ctx);
         }
         // Draw last active window
         activeWindows[WindowEntity.lastActiveIndex].draw(ctx);
+    }
+    
+    // Handle framerate
+    if (showFPS) {
+        if (last === undefined) {
+            last = new Date();
+        }
+        if (ms >= 1000) {
+            fps = (frames / ms) * 1000;
+            ms = 0;
+            frames = 0;
+        }
+        let now = new Date();
+        ms += now.getTime() - last.getTime();
+        frames++;
+        ctx.font = '48px arial';
+        ctx.fillText(fps.toFixed(2), .3 * ScreenWidth(), 60);
+        last = now;
     }
 }
 
@@ -95,8 +95,20 @@ function createFileSystem() {
 
 let movingWindow = false;
 let resizingWindow = false;
+
 let clickingIcon = false;
 let iconClickedIndex = 0;
+
+let clickingButton = false;
+
+let batchfileImg = new Image();
+batchfileImg.src = 'icons/batchfile.png';
+let notepadfileImg = new Image();
+notepadfileImg.src = 'icons/notepadfile.png';
+let exefileImg = new Image();
+exefileImg.src = 'icons/exefile.png';
+let folderImg = new Image();
+folderImg.src = 'icons/closedfolder.png';
 
 window.addEventListener('load', e => {
     const canvas = $('canvas');
@@ -105,8 +117,16 @@ window.addEventListener('load', e => {
 
     const fileSystem = createFileSystem();
 
-    let i = new Icon(20, 20, 100, 100, "Icon", img);
-    activeIcons.push(i);
+    // Distance between icons is: 120 * (height / 100)
+    let batchfileIcon = new Icon(/*20, 20, 100, 100,*/ "Batch", batchfileImg);
+    let notepadfileIcon = new Icon(/* 20, 140, 100, 100, */ "Notepad", notepadfileImg);
+    let exefileIcon = new Icon(/* 20, 260, 100, 100, */ "Exe", exefileImg);
+    let folderIcon = new Icon("Folder", folderImg);
+    activeIcons.push(batchfileIcon);
+    activeIcons.push(notepadfileIcon);
+    activeIcons.push(exefileIcon);
+    activeIcons.push(folderIcon);
+
     
     // Re-render on resize
     window.addEventListener('resize', e => {
@@ -114,30 +134,32 @@ window.addEventListener('load', e => {
     });
 
     canvas.addEventListener('mousedown', e => {
+        const mouseX = e.clientX;
+        const mouseY = e.clientY;
+        
         // Handle windows (real messy)
+        const lastActiveIndex = WindowEntity.lastActiveIndex;
         if (activeWindows.length !== 0) {
-            const lastActiveIndex = WindowEntity.lastActiveIndex;
-
             // moving active -> in active -> moving other -> in other
-            if (activeWindows[lastActiveIndex].canMove(e.clientX, e.clientY)) {
+            if (activeWindows[lastActiveIndex].canMove(mouseX, mouseY)) {
                 // Active window move
                 movingWindow = true;
-                const offx = e.clientX - activeWindows[lastActiveIndex].x;
-                const offy = e.clientY - activeWindows[lastActiveIndex].y;
+                const offx = mouseX - activeWindows[lastActiveIndex].x;
+                const offy = mouseY - activeWindows[lastActiveIndex].y;
                 activeWindows[lastActiveIndex].setGrabOffset(offx, offy);
-            } else if (activeWindows[lastActiveIndex].isHovered(e.clientX, e.clientY)) {
+            } else if (activeWindows[lastActiveIndex].isHovered(mouseX, mouseY)) {
                 // Active window click
-                console.log("In active window: " + lastActiveIndex);
+                //console.log("In active window: " + lastActiveIndex);
             } else {
                 // other window move
                 let noWindowFound = true;
                 for (let i = 0; i < activeWindows.length; i++) {
                     if (i === lastActiveIndex) continue;
-                    if (activeWindows[i].canMove(e.clientX, e.clientY)) {
+                    if (activeWindows[i].canMove(mouseX, mouseY)) {
                         WindowEntity.lastActiveIndex = i;
                         movingWindow = true;
-                        let offx = e.clientX - activeWindows[i].x;
-                        let offy = e.clientY - activeWindows[i].y;
+                        let offx = mouseX - activeWindows[i].x;
+                        let offy = mouseY - activeWindows[i].y;
                         activeWindows[i].setGrabOffset(offx, offy);
                         noWindowFound = false;
                         break;
@@ -147,7 +169,7 @@ window.addEventListener('load', e => {
                 if (noWindowFound) {
                     for (let i = 0; i < activeWindows.length; i++) {
                         if (i === lastActiveIndex) continue;
-                        if (activeWindows[i].isHovered(e.clientX, e.clientY)) {
+                        if (activeWindows[i].isHovered(mouseX, mouseY)) {
                             WindowEntity.lastActiveIndex = i;
                             console.log("In window: " + i);
                             break;
@@ -156,9 +178,9 @@ window.addEventListener('load', e => {
                 }
             }
             // Handle active window resize
-            if (activeWindows[lastActiveIndex].canResize(e.clientX, e.clientY)) {
-                let offx = activeWindows[lastActiveIndex].x + activeWindows[lastActiveIndex].w - e.clientX;
-                let offy = activeWindows[lastActiveIndex].y + activeWindows[lastActiveIndex].h - e.clientY;
+            if (activeWindows[lastActiveIndex].canResize(mouseX, mouseY)) {
+                let offx = activeWindows[lastActiveIndex].x + activeWindows[lastActiveIndex].w - mouseX;
+                let offy = activeWindows[lastActiveIndex].y + activeWindows[lastActiveIndex].h - mouseY;
                 activeWindows[lastActiveIndex].setGrabOffset(offx, offy);
                 resizingWindow = true;
             }
@@ -166,7 +188,7 @@ window.addEventListener('load', e => {
         
         // Check if trying to click icon
         for (let i = 0; i < activeIcons.length; i++) {
-            if (activeIcons[i].canClick(e.clientX, e.clientY)) {
+            if (activeIcons[i].canClick(mouseX, mouseY)) {
                 clickingIcon = true;
                 iconClickedIndex = i;
                 break;
@@ -175,8 +197,26 @@ window.addEventListener('load', e => {
 
         // Check if trying to click button
         for (let i = 0; i < activeButtons.length; i++) {
-            if (activeButtons[i].isHovered(e.clientX, e.clientY)) {
+            if (activeButtons[i].isHovered(mouseX, mouseY)) {
                 activeButtons[i].pressed = true;
+                break;
+            }
+        }
+
+        // Check if trying to click window button
+        // Check active first
+        let activeButtonHovered = false;
+        if (activeWindows.length !== 0) {
+            activeButtonHovered = activeWindows[lastActiveIndex].close_button.isHovered(mouseX, mouseY);
+        }
+        if (activeButtonHovered) {
+            activeWindows[lastActiveIndex].close_button.pressed = true;
+        } else {
+            for (let i = 0; i < activeWindows.length; i++) {
+                if (i === lastActiveIndex) continue;
+                if (activeWindows[i].close_button.isHovered(mouseX, mouseY)) {
+                    activeWindows[i].close_button.pressed = true;
+                }
             }
         }
 
@@ -185,29 +225,42 @@ window.addEventListener('load', e => {
 
     canvas.addEventListener('mousemove', e => {
         
+        const lastActiveIndex = WindowEntity.lastActiveIndex;
+
         if (movingWindow) {
-            activeWindows[WindowEntity.lastActiveIndex].move(e.clientX, e.clientY);
+            activeWindows[lastActiveIndex].move(e.clientX, e.clientY);
         }
 
         if (resizingWindow) {
-            activeWindows[WindowEntity.lastActiveIndex].resize(e.clientX, e.clientY);
+            activeWindows[lastActiveIndex].resize(e.clientX, e.clientY);
         }
 
-        for (let i = 0; i < activeButtons.length; i++) {
+        // Check if window button hovered
+        /* for (let i = 0; i < activeWindows.length; i++) {
+            let close_hovered = activeWindows[i].close_button.isHovered(e.clientX, e.clientY);
+            activeWindows[i].hovered = close_hovered;
+            if (close_hovered) break;
+        } */
+
+        /* for (let i = 0; i < activeButtons.length; i++) {
             activeButtons[i].hovered = activeButtons[i].isHovered(e.clientX, e.clientY);
-        }
+        } */
 
         main(canvas);
     });
 
     canvas.addEventListener('mouseup', e => {
+        const mouseX = e.clientX;
+        const mouseY = e.clientY;
+
         // Finished moving or resizing a window
         movingWindow = false;
         resizingWindow = false;
 
         // Finished clicking an icon
-        if (clickingIcon && activeIcons[iconClickedIndex].canClick(e.clientX, e.clientY)) {
+        if (clickingIcon && activeIcons[iconClickedIndex].canClick(mouseX, mouseY)) {
             let win;
+            activeIcons[iconClickedIndex].onClick();
             if (e.ctrlKey) 
                 win = new TextWindow(
                     .5 * ScreenWidth(), 
@@ -216,6 +269,15 @@ window.addEventListener('load', e => {
                     .4 * ScreenHeight(), 
                     'TextWindow' + activeWindows.length
                 );
+            else if (e.altKey) // Open textwindow of aboutme text
+                win = new TextWindow(
+                    .5 * ScreenWidth(), 
+                    .5 * ScreenHeight(), 
+                    .3 * ScreenWidth(), 
+                    .4 * ScreenHeight(), 
+                    'TextWindow' + activeWindows.length,
+                    './text/aboutme.txt'
+                ); 
             else 
                 win = new Terminal(
                     .5 * ScreenWidth(), 
@@ -224,7 +286,8 @@ window.addEventListener('load', e => {
                     .4 * ScreenHeight(), 
                     'Terminal' + activeWindows.length,
                     fileSystem
-                );
+                );         
+            activeButtons.push(new ActiveWindowButton(win));
             activeWindows.push(win);
 
             // Set newly opened window to be the last active window
@@ -239,12 +302,41 @@ window.addEventListener('load', e => {
             }
         }
 
+        // Need to rework this later
+        let removePos = -1;
+        for (let i = 0; i < activeWindows.length; i++) {
+            // if not hovered anymore, don't close window
+            let hovered = activeWindows[i].close_button.isHovered(mouseX, mouseY);
+            if (activeWindows[i].close_button.pressed && hovered) {
+                activeWindows[i].close_button.pressed = false;
+                activeWindows[i].close_button.onClick();
+                removePos = i;
+                break;
+            } else if (activeWindows[i].close_button.pressed) {
+                activeWindows[i].close_button.pressed = false;
+            }
+        }
+        // Remove the window at index
+        if (removePos !== -1) {
+            console.log("Going to remove " + activeWindows[removePos].title)
+            WindowEntity.lastActiveIndex = 0; // HACK
+            activeWindows.splice(removePos, 1);
+        }
+
         main(canvas);
     });
 
-    // Remove context menu
+    // Remove context menu and maybe add own context menu
     canvas.addEventListener('contextmenu', e => {
         e.preventDefault();
+        const mouseX = e.clientX;
+        const mouseY = e.clientY;
+        /* const ctx = canvas.getContext('2d');
+        ctx.fillStyle = 'white';
+        if (mouseY + 100 > ScreenHeight()) {
+            ctx.fillRect(mouseX, mouseY - 100, 100, 100)
+        } else
+        ctx.fillRect(mouseX, mouseY, 100, 100); */
     });
 
     // Handle key presses
