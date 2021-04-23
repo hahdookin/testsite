@@ -1,3 +1,4 @@
+import { File } from './FileSystem.js';
 import WindowEntity from './WindowEntity.js';
 import { ScreenWidth, ScreenHeight, colors } from '../Utils.js';
 import { getText } from '../Utils.js';
@@ -13,24 +14,31 @@ export default class TextWindow extends WindowEntity {
     contentFontHeight = 14;
     cursorVisible = true;
 
+    // Stored from result of wordwrap split to draw cursor
+    cursorHeight;
+    cursorWidth;
+    linesLen;
+
+    file; // Pointer to file object if exists
+
     constructor(x, y, w, h, title, file=null) {
         super(x, y, w, h, title);
 
         if (file) {
-            let txt = getText(file)
-                .catch(err => {
-                    this.content = "Couldn't grab content";
-                })
-                .then(text => {
-                    this.content = text;
-                });
-                
+            this.file = file;
+            this.title += " - " + file.key;
+            this.loadTextFromFile();
         }
         
         this.contentArea.x = this.x + 7;
         this.contentArea.y = this.y + 27;
         this.contentArea.w = this.w - 14;
         this.contentArea.h = this.h - 34;
+    }
+
+    async loadTextFromFile() {
+        const text = await this.file.loadContent();
+        this.content = text;
     }
 
     // Determine how we should split our text.
@@ -95,6 +103,8 @@ export default class TextWindow extends WindowEntity {
         //ctx.fillRect(textStartX, textStartY - contentFontHeight, maxTextWidth, maxTextHeight)
 
         const splitByNewline = this.split(ctx, true);
+        this.linesLen = splitByNewline.length - 1;
+        this.cursorWidth = ctx.measureText(splitByNewline[splitByNewline.length - 1]).width;
         //splitByNewline[splitByNewline.length - 1] += this.command;
 
         // Character word wrap (bad)
@@ -115,36 +125,6 @@ export default class TextWindow extends WindowEntity {
                 splitByNewline[i + 1] = second;
             }
         }*/
-
-        // Updated word wrap
-        /* for (let i = 0; i < splitByNewline.length; i++) {
-            // Don't wrap tex we can't see
-            const curHeight = this.contentFontHeight * (i + 1);
-            if (curHeight > maxTextHeight) {
-                break;
-            }
-            const curWidth = ctx.measureText(splitByNewline[i]).width;
-            if (curWidth > maxTextWidth) {
-                let cutOffIndex = splitByNewline[i].length - 1;
-                let testStr = splitByNewline[i].substring(0, cutOffIndex);
-                let testWidth = ctx.measureText(testStr).width;
-                while (testWidth > maxTextWidth && cutOffIndex !== 0) {
-                    let lastSpace = splitByNewline[i].lastIndexOf(' ', cutOffIndex - 1);
-                    if (lastSpace === -1) {
-                        cutOffIndex--;
-                    } else {
-                        cutOffIndex = lastSpace;
-                    }
-                    
-                    testStr = splitByNewline[i].substring(0, cutOffIndex);
-                    testWidth = ctx.measureText(testStr).width;
-                }
-                let first = splitByNewline[i].slice(0, cutOffIndex);
-                let second = splitByNewline[i].slice(cutOffIndex);
-                splitByNewline.splice(i, 0, first);
-                splitByNewline[i + 1] = second;
-            }
-        } */
 
         for (let i = 0; i < splitByNewline.length; i++) {
             // Wrap text thats too long
@@ -172,18 +152,22 @@ export default class TextWindow extends WindowEntity {
             const textStartX = this.contentArea.x + 3;
             const textStartY = this.contentArea.y + 15; 
             const maxTextHeight = this.contentArea.h - 2;
-            const curHeight = this.contentFontHeight * splitByNewline.length;
-            
+            //const curHeight = this.contentFontHeight * splitByNewline.length;
+            const curHeight = this.contentFontHeight * (this.linesLen + 1);
+
             // Don't draw cursor that can't be seen
             if (curHeight > maxTextHeight) return;
-
+            
             const width = ctx.measureText(splitByNewline[splitByNewline.length - 1]).width;
 
             // Vertical line cursor
             ctx.strokeStyle = this.textColor;
             ctx.beginPath();
-            ctx.moveTo(textStartX + width, textStartY + this.contentFontHeight * (splitByNewline.length - 2) + 3);
-            ctx.lineTo(textStartX + width, textStartY + this.contentFontHeight * (splitByNewline.length - 1) + 3);
+            //ctx.moveTo(textStartX + width, textStartY + this.contentFontHeight * (splitByNewline.length - 2) + 3);
+            //ctx.lineTo(textStartX + width, textStartY + this.contentFontHeight * (splitByNewline.length - 1) + 3);
+            ctx.moveTo(textStartX + this.cursorWidth, textStartY + this.contentFontHeight * (this.linesLen - 1) + 3);
+            ctx.lineTo(textStartX + this.cursorWidth, textStartY + this.contentFontHeight * (this.linesLen) + 3);
+            
             ctx.stroke();
         }
     }

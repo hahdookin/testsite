@@ -25,11 +25,13 @@ function loadUIElements() {
     return items;
 }
 
-let showFPS = true;
-let frames = 0;
-let ms = 0;
-let last;
-let fps = 0;
+const FPSTracker = {
+    showFPS: true,
+    frames: 0,
+    ms: 0,
+    last: undefined,
+    fps: 0,
+};
 
 function main(canvas) {
     canvas.width = ScreenWidth();
@@ -66,32 +68,51 @@ function main(canvas) {
     }
     
     // Handle framerate
-    if (showFPS) {
-        if (last === undefined) {
-            last = new Date();
+    if (FPSTracker.showFPS) {
+        if (FPSTracker.last === undefined) {
+            FPSTracker.last = new Date();
         }
-        if (ms >= 1000) {
-            fps = (frames / ms) * 1000;
-            ms = 0;
-            frames = 0;
+        if (FPSTracker.ms >= 1000) {
+            FPSTracker.fps = (FPSTracker.frames / FPSTracker.ms) * 1000;
+            FPSTracker.ms = 0;
+            FPSTracker.frames = 0;
         }
         let now = new Date();
-        ms += now.getTime() - last.getTime();
-        frames++;
+        FPSTracker.ms += now.getTime() - FPSTracker.last.getTime();
+        FPSTracker.frames++;
         ctx.font = '48px arial';
-        ctx.fillText(fps.toFixed(2), .3 * ScreenWidth(), 60);
-        last = now;
+        ctx.fillText(FPSTracker.fps.toFixed(2), .3 * ScreenWidth(), 60);
+        FPSTracker.last = now;
     }
 }
 
-function createFileSystem() {
+/* function createFileSystem() {
     const fs = new FileSystem('root');
+
     fs.root.add(new Folder('user'));
     fs.root.get('user').add(new Folder('documents'));
+    fs.root.get('user').add(new Folder('desktop'));
+    fs.root.get('user').get('desktop').add(new File('./text/aboutme.txt'));
     fs.root.add(new Folder('bin'));
     fs.root.add(new Folder('cache'));
+    fs.root.add(new File('./text/code.js'));
+
+    return fs;
+} */
+function createFileSystem() {
+    const fs = new FileSystem('root');
+
+    fs.get('root').add(new Folder('user'));
+    fs.get('root').add(new Folder('bin'));
+    fs.get('root').add(new Folder('cache'));
+    fs.get('root').add(new File('./text/code.js'));
+    fs.get('root/user').add(new Folder('documents'));
+    fs.get('root/user').add(new Folder('desktop'));
+    fs.get('root/user/desktop').add(new File('./text/aboutme.txt'));
+    
     return fs;
 }
+
 
 let movingWindow = false;
 let resizingWindow = false;
@@ -101,6 +122,7 @@ let iconClickedIndex = 0;
 
 let clickingButton = false;
 
+// Load images
 let batchfileImg = new Image();
 batchfileImg.src = 'icons/batchfile.png';
 let notepadfileImg = new Image();
@@ -136,6 +158,7 @@ window.addEventListener('load', e => {
     canvas.addEventListener('mousedown', e => {
         const mouseX = e.clientX;
         const mouseY = e.clientY;
+        
         
         // Handle windows (real messy)
         const lastActiveIndex = WindowEntity.lastActiveIndex;
@@ -276,13 +299,13 @@ window.addEventListener('load', e => {
                     .3 * ScreenWidth(), 
                     .4 * ScreenHeight(), 
                     'TextWindow' + activeWindows.length,
-                    './text/aboutme.txt'
+                    new File('./text/aboutme.txt')
                 ); 
             else 
                 win = new Terminal(
-                    .5 * ScreenWidth(), 
+                    .1 /* .5 */ * ScreenWidth(), 
                     .5 * ScreenHeight(), 
-                    .3 * ScreenWidth(), 
+                    .8 /* .3 */ * ScreenWidth(), 
                     .4 * ScreenHeight(), 
                     'Terminal' + activeWindows.length,
                     fileSystem
@@ -320,6 +343,19 @@ window.addEventListener('load', e => {
         if (removePos !== -1) {
             console.log("Going to remove " + activeWindows[removePos].title)
             WindowEntity.lastActiveIndex = 0; // HACK
+
+            // delete later
+            let abIndex;
+            for (let i = 0; i < activeButtons.length; i++) {
+                if (activeButtons[i].parent === activeWindows[removePos]) {
+                    abIndex = i;
+                    break;
+                }
+            }
+            activeButtons.splice(abIndex, 1);
+            ActiveWindowButton.count--;
+            // thanks
+
             activeWindows.splice(removePos, 1);
         }
 

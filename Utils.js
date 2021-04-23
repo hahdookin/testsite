@@ -32,6 +32,7 @@ export function getRandomColor() {
     return res;
 }
 
+
 export async function getText(file) {
     return fetch(file).then(r => r.text());
 }

@@ -19,17 +19,18 @@ export default class ActiveWindowButton extends Button {
         this.parent = parent;
         this.text = parent.title;
     }
-    draw(ctx, n = 0) {
+    draw(ctx) {
         
         super.draw(ctx);
 
         //ctx.fillStyle = super.color();
         //ctx.fillRect(x, y, w, h);
 
-        //ctx.font = "14px WindowsXP";
-        //ctx.fillStyle = 'black';
+        ctx.font = "14px WindowsXP";
+        ctx.fillStyle = 'black';
 
         super.drawButtonOutline(ctx);
+        ctx.fillText(this.text, this.x, this.y + this.h / 2);
     }
 }
 
